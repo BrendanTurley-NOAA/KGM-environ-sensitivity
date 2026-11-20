@@ -5,11 +5,11 @@ library(ncdf4)
 library(viridis)
 library(cmocean)
 
-setwd(
-  "c:/Users/brendan.turley/Documents/R_projects/esr-indicator-scratch/data/intermediate_files"
-)
-gulfsst <- nc_open('ct_sst_gom.nc')
+load('c:/Users/brendan.turley/Documents/R_projects/KGM-environ-sensitivity/data/kmk_smdat.RData')
+quantile(kmk_pos$TEMPSURF,c(.025,.975),na.rm=T)
 
+
+setwd("c:/Users/brendan.turley/Documents/R_projects/esr-indicator-scratch/data/intermediate_files")
 
 sst <- readRDS('ct_sst_2025')
 i <- 300
