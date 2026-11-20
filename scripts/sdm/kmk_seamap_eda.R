@@ -3,6 +3,7 @@
 # https://academic.oup.com/icesjms/article/76/6/1748/5479986
 # https://academic.oup.com/icesjms/article/75/1/158/3958179
 
+rm(list = ls())
 library(dplyr)
 library(geosphere)
 library(lubridate)
@@ -186,14 +187,13 @@ all_merge <- remove0(all_merge)
 all0_merge <- remove0(all0_merge)
 
 ### outlier removal function
-
 outlier_rm <- function(x, col = c('depth', 'WIND_SPD',
                                   'CHLORSURF', 'CHLORMAX',
                                   'OXYSURF', 'OXYMAX')) {
   x <- drop_units(x)
   for(i in 1:length(col)){
     tmp <- x[,col[i]]
-    out_thres <- quantile(tmp, .999, na.rm = T)
+    out_thres <- quantile(tmp, .9995, na.rm = T)
     ind <- which(tmp>out_thres | is.na(tmp))
     if(length(ind)>0){
       x <- x[-ind, ]
@@ -202,7 +202,7 @@ outlier_rm <- function(x, col = c('depth', 'WIND_SPD',
   x
 }
 
-all_merge <- outlier_rm(all_merge)
+# all_merge2 <- outlier_rm(all_merge)
 
 
 ### use the operation code in invrec and haulvalue in starec to filter for quality
@@ -210,6 +210,13 @@ all_merge <- outlier_rm(all_merge)
 # 1 which location data to use (start, stop, ctd); take midpoint of start and stop of tow
 # 2 which time of day to use (start, stop, ctd); take midpoint of start and stop of tow
 # 3 which environmental data to use ; quick suggests that the env data is more complete; but many fields are NA
+# 4 when to use: "CNT" versus "CNTEXP" and "SAMPLE_BGS" versus "SELECT_BGS##"
+### Terms for Individual Counts and Weights:
+#### CNT = Total count of a processed organism.
+#### CNTEXP = Expanded total count of a processed organism accounting for sub-sampling.
+#### SAMPLE_BGS = Total weight of a processed organism.
+#### SELECT_BGS = Expanded total weight of a processed organism accounting for sub-sampling.
+# cbind(catch_kmk$CNT, catch_kmk$CNTEXP, catch_kmk$SAMPLE_BGS, catch_kmk$SELECT_BGS) |> View()
 
 ### simple model 1
 ### cpue ~ sst + sss + schl + depth + lon + lat + jday + hour + year
@@ -231,6 +238,29 @@ kmk_pos$hour <- paste0(substr(kmk_pos$TIME_MIL,1,2),':',substr(kmk_pos$TIME_MIL,
 kmk_pos$year <- year(kmk_pos$start_utc) |> as.factor()
 kmk_pos$month <- month(kmk_pos$start_utc) |> as.factor()
 
+kmk_neg <- all0_merge |> 
+  select(effort_km2, dist_fish, MIN_FISH, hrs_fish, lon, lat, TIME_MIL, TIME_EMIL,
+         tz, START_DATE, start_utc, depth, TEMP_SSURF, TEMP_BOT, WIND_SPD, TEMPSURF,
+         TEMPMAX, SALSURF, SALMAX, CHLORSURF, CHLORMAX, OXYSURF, OXYMAX, TURBSURF, TURBMAX)
+kmk_neg$SELECT_BGS <- kmk_neg$CNTEXP <- 0
+kmk_neg$cpue <- kmk_neg$SELECT_BGS / kmk_neg$effort_km2 #|> drop_units()
+kmk_neg$cpue2 <- kmk_neg$SELECT_BGS / kmk_neg$hrs_fish #|> drop_units()
+kmk_neg$npue <- kmk_neg$CNTEXP / kmk_neg$effort_km2 #|> drop_units()
+kmk_neg$npue2 <- kmk_neg$CNTEXP / kmk_neg$hrs_fish #|> drop_units()
+kmk_neg$jday <- kmk_neg$start_utc |> yday()
+kmk_neg$TIME_MIL <- sprintf('%04d', kmk_neg$TIME_MIL)
+kmk_neg$hour <- paste0(substr(kmk_neg$TIME_MIL,1,2),':',substr(kmk_neg$TIME_MIL,3,4)) |>
+  hm() |> lubridate::hour()
+kmk_neg$year <- year(kmk_neg$start_utc) |> as.factor()
+kmk_neg$month <- month(kmk_neg$start_utc) |> as.factor()
+
+### combined
+sub <- sample(1:nrow(kmk_neg),nrow(kmk_neg)*.1)
+kmk_com <- rbind(kmk_pos, kmk_neg[sub,])
+
+setwd("c:/Users/brendan.turley/Documents/R_projects/KGM-environ-sensitivity/data")
+save(kmk_pos, kmk_neg, file = "kmk_smdat.RData")
+
 par(mfrow=c(2,2))
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$cpue), asp = 1, pch = 21, bg = alpha('gray20',.2))
 plot(kmk_pos$lon, kmk_pos$lat, cex = log10(kmk_pos$cpue2), asp = 1, pch = 21, bg = alpha('gray20',.2))
@@ -241,17 +271,23 @@ hist(kmk_pos$lon,breaks=seq(-100,-80,.1),xlim=c(-90,-85))
 hist(kmk_pos$start_utc |> month())
 hist(kmk_pos$start_utc |> year())
 
-kmk_pos <- subset(kmk_pos, lon<=(-88))
+plot(kmk_neg$lon, kmk_neg$lat, asp = 1)
+hist(kmk_neg$lon,breaks=seq(-100,-80,.1),xlim=c(-90,-85))
+hist(kmk_neg$start_utc |> month())
+hist(kmk_neg$start_utc |> year())
+
+# kmk_pos <- subset(kmk_pos, lon<=(-88))
+# kmk_neg <- subset(kmk_neg, lon<=(-88))
 
 cpue_model1 <- gam(
   cpue2 ~ s(TEMPSURF,k=6) + 
-    # s(TEMP_BOT) +
+    s(TEMP_BOT,k=6) +
     s(SALSURF,k=6) + 
-    # s(SALMAX) + 
+    s(SALMAX,k=6) + 
     s(CHLORSURF,k=6) + 
-    # s(CHLORMAX) + 
+    s(CHLORMAX,k=6) + 
     s(OXYSURF,k=6) + 
-    # s(OXYMAX) + 
+    s(OXYMAX,k=6) + 
     s(WIND_SPD,k=6) +
     s(depth,k=6) +
     te(lon, lat, k=6) +               # 2D spatial smooth; alt: s(lon, lat)
@@ -340,33 +376,6 @@ AIC(cpue_model2)
 gam.check(cpue_model2, old.style=F, type=c("response"))
 plot(cpue_model2, pages=1, scale=F, shade=T, seWithMean=T,scheme=2,rug=T,residuals=F)
 
-
-kmk_neg <- all0_merge |> 
-  select(effort_km2, dist_fish, MIN_FISH, hrs_fish, lon, lat, TIME_MIL, TIME_EMIL,
-         tz, START_DATE, start_utc, depth, TEMP_SSURF, TEMP_BOT, WIND_SPD, TEMPSURF,
-         TEMPMAX, SALSURF, SALMAX, CHLORSURF, CHLORMAX, OXYSURF, OXYMAX, TURBSURF, TURBMAX)
-kmk_neg$SELECT_BGS <- kmk_neg$CNTEXP <- 0
-kmk_neg$cpue <- kmk_neg$SELECT_BGS / kmk_neg$effort_km2 #|> drop_units()
-kmk_neg$cpue2 <- kmk_neg$SELECT_BGS / kmk_neg$hrs_fish #|> drop_units()
-kmk_neg$npue <- kmk_neg$CNTEXP / kmk_neg$effort_km2 #|> drop_units()
-kmk_neg$npue2 <- kmk_neg$CNTEXP / kmk_neg$hrs_fish #|> drop_units()
-kmk_neg$jday <- kmk_neg$start_utc |> yday()
-kmk_neg$TIME_MIL <- sprintf('%04d', kmk_neg$TIME_MIL)
-kmk_neg$hour <- paste0(substr(kmk_neg$TIME_MIL,1,2),':',substr(kmk_neg$TIME_MIL,3,4)) |>
-  hm() |> lubridate::hour()
-kmk_neg$year <- year(kmk_neg$start_utc) |> as.factor()
-kmk_neg$month <- month(kmk_neg$start_utc) |> as.factor()
-
-plot(kmk_neg$lon, kmk_neg$lat, asp = 1)
-hist(kmk_neg$lon,breaks=seq(-100,-80,.1),xlim=c(-90,-85))
-hist(kmk_neg$start_utc |> month())
-hist(kmk_neg$start_utc |> year())
-
-kmk_neg <- subset(kmk_neg, lon<=(-88))
-
-### combined
-sub <- sample(1:nrow(kmk_neg),nrow(kmk_neg)*.1)
-kmk_com <- rbind(kmk_pos, kmk_neg[sub,])
 
 cpue_model2 <- gam(
   cpue2 ~ s(TEMPSURF) + 
