@@ -102,15 +102,125 @@ slopes_m <- apply(hci_mts, c(2, 3), function(x) {
   }
   coef(lm(x ~ c(1:length(x))))[2]
 }) ### this should return a matrix of 360x260
-
 hist(slopes_m, main = 'Histogram of Slopes', xlab = 'Slope', breaks = 30)
 range(slopes_m, na.rm = TRUE)
 b_brks <- seq(-.009, .009, by = 0.0006) #length.out = 30)
 b_col <- cmocean::cmocean('balance')(length(b_brks)-1)
 
-imagePlot(slopes_m, breaks = b_brks, col = b_col)
+
+min_m <- apply(hci_mts, c(2, 3), function(x) {
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  min(x, na.rm = TRUE)
+}) ### this should return a matrix of 360x260
+hist(min_m, main = 'Histogram of Min', xlab = 'HCI', breaks = 30)
+range(min_m, na.rm = TRUE)
+m_brks <- seq(.4, 1, by = .02) #length.out = 30)
+m_col <- cmocean::cmocean('matter')(length(m_brks)-1)
+
+
+max_m <- apply(hci_mts, c(2, 3), function(x) {
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  max(x, na.rm = TRUE)
+}) ### this should return a matrix of 360x260
+hist(max_m, main = 'Histogram of Max', xlab = 'HCI', breaks = 30)
+range(max_m, na.rm = TRUE)
+mx_brks <- seq(.75, 1, by = .01) #length.out = 30)
+mx_col <- cmocean::cmocean('speed')(length(mx_brks)-1)
+
+
+mean_m <- apply(hci_mts, c(2, 3), function(x) {
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  mean(x, na.rm = TRUE)
+}) ### this should return a matrix of 360x260
+hist(mean_m, main = 'Histogram of Mean', xlab = 'HCI', breaks = 30)
+range(mean_m, na.rm = TRUE)
+mn_brks <- seq(.55, 1, by = .05) #length.out = 30)
+mn_col <- cmocean::cmocean('rain')(length(mn_brks)-1)
+
+
+sd_m <- apply(hci_mts, c(2, 3), function(x) {
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  sd(x, na.rm = TRUE)
+}) ### this should return a matrix of 360x260
+hist(sd_m, main = 'Histogram of SD', xlab = 'HCI', breaks = 30)
+range(sd_m, na.rm = TRUE)
+sd_brks <- seq(0, 0.14, by = 0.01) #length.out = 30)
+sd_col <- cmocean::cmocean('dense')(length(sd_brks)-1)
+
+
+setwd("c:/Users/brendan.turley/Documents/R_projects/kgm-environ-sensitivity/figures")
+png('hci_plots.png', width = 7, height = 9, units = 'in', res = 300)
+par(mfrow = c(3, 2), mar = c(4, 4, 2, 2))
+imagePlot(slopes_m, breaks = b_brks, col = b_col, asp = 1)
+mtext('Slope of HCI')
 contour(slopes_m, add = TRUE, col = 'gray20', levels = 0)
 
+imagePlot(min_m, breaks = m_brks, col = m_col, asp = 1)
+mtext('Min of HCI')
+contour(min_m, add = TRUE, col = 'gray20', levels = seq(.4, 1, by = .1))
+
+imagePlot(max_m, breaks = mx_brks, col = mx_col, asp = 1)
+mtext('Max of HCI')
+contour(max_m, add = TRUE, col = 'gray50', levels = seq(.75, 1, by = .05))
+
+imagePlot(mean_m, breaks = mn_brks, col = mn_col, asp = 1)
+mtext('Mean of HCI')
+contour(mean_m, add = TRUE, col = 'gray50', levels = seq(.55, 1, by = .05))
+
+imagePlot(sd_m, breaks = sd_brks, col = sd_col, asp = 1)
+mtext('SD of HCI')
+contour(sd_m, add = TRUE, col = 'gray20', levels = seq(0, 0.14, by = 0.01))
+dev.off()
+
+
+
+median_m <- apply(hci_mts, c(2, 3), function(x) {
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  median(x, na.rm = TRUE)
+}) ### this should return a matrix of 360x260
+hist(median_m, main = 'Histogram of Median', xlab = 'HCI', breaks = 30)
+range(median_m, na.rm = TRUE)
+med_brks <- seq(.55, 1, by = .05) #length.out = 30)
+med_col <- cmocean::cmocean('rain')(length(med_brks)-1)
+
+
+iqr_m <- apply(hci_mts, c(2, 3), function(x) {
+  if (all(is.na(x))) {
+    return(NA)
+  }
+  IQR(x, na.rm = TRUE)
+}) ### this should return a matrix of 360x260
+hist(iqr_m, main = 'Histogram of IQR', xlab = 'HCI', breaks = 30)
+range(iqr_m, na.rm = TRUE)
+iqr_brks <- seq(0, 0.25, by = 0.01) #length.out = 30)
+iqr_col <- cmocean::cmocean('dense')(length(iqr_brks)-1)
+
+par(mfrow = c(2, 2), mar = c(4, 4, 2, 2))
+imagePlot(mean_m, breaks = mn_brks, col = mn_col)
+mtext('Mean of HCI')
+contour(mean_m, add = TRUE, col = 'gray50', levels = seq(.55, 1, by = .05))
+
+imagePlot(sd_m, breaks = sd_brks, col = sd_col)
+mtext('SD of HCI')
+contour(sd_m, add = TRUE, col = 'gray20', levels = seq(0, 0.14, by = 0.01))
+
+imagePlot(median_m, breaks = med_brks, col = med_col)
+mtext('Median of HCI')
+contour(median_m, add = TRUE, col = 'gray50', levels = seq(.55, 1, by = .05))
+
+imagePlot(iqr_m, breaks = iqr_brks, col = iqr_col)
+mtext('IQR of HCI')
+contour(iqr_m, add = TRUE, col = 'gray20', levels = seq(0, 0.25, by = 0.05))
 
 ### terra
 
