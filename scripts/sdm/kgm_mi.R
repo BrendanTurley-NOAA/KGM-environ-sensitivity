@@ -458,18 +458,18 @@ po2_kpa <- convert_umol_kg_to_kPa(salinity_psu = kmk_pos$SALSURF, depth_m = 2, l
   latitude = kmk_pos$lat, temp_c = kmk_pos$TEMPSURF, O2_umol_kg = do_umol_kg)
 
 setwd('c:/Users/brendan.turley/Documents/R_projects/metabolic_index_cmp')
-kgm_df <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMPSURF)
-kgm_df <- update_df(kgm_df, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
+kgm_df_surf <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMPSURF)
+kgm_df_surf <- update_df(kgm_df_surf, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
 
-hist(kgm_df$p_pcrit)
-hist(kgm_df$pcrit)
-hist(kgm_df$phi)
+hist(kgm_df_surf$p_pcrit)
+hist(kgm_df_surf$pcrit)
+hist(kgm_df_surf$phi)
 hist(po2_kpa)
-plot(kgm_df$p_pcrit,kgm_df$phi)
-plot(kgm_df$temperature_C,kgm_df$phi)
-plot(kgm_df$po2,kgm_df$phi)
-range(kgm_df$phi, na.rm = TRUE)
-range(kgm_df$pcrit, na.rm = TRUE)
+plot(kgm_df_surf$p_pcrit,kgm_df_surf$phi)
+plot(kgm_df_surf$temperature_C,kgm_df_surf$phi)
+plot(kgm_df_surf$po2,kgm_df_surf$phi)
+range(kgm_df_surf$phi, na.rm = TRUE)
+range(kgm_df_surf$pcrit, na.rm = TRUE)
 
 ### bottom
 do_umol_kg <- convert_DO_mgL_to_umol_kg(DO_mg_L = kmk_pos$OXYMAX, temp_c = kmk_pos$TEMP_BOT, 
@@ -478,21 +478,21 @@ po2_kpa <- convert_umol_kg_to_kPa(salinity_psu = kmk_pos$SALMAX, depth_m = kmk_p
   latitude = kmk_pos$lat, temp_c = kmk_pos$TEMP_BOT, O2_umol_kg = do_umol_kg)
 
 setwd('c:/Users/brendan.turley/Documents/R_projects/metabolic_index_cmp')
-kgm_df <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMP_BOT)
-kgm_df <- update_df(kgm_df, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
+kgm_df_bot <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMP_BOT)
+kgm_df_bot <- update_df(kgm_df_bot, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
 
-hist(kgm_df$p_pcrit)
-hist(kgm_df$phi)
+hist(kgm_df_bot$p_pcrit)
+hist(kgm_df_bot$phi)
 hist(po2_kpa)
-plot(kgm_df$p_pcrit,kgm_df$phi)
-plot(kgm_df$temperature_C,kgm_df$phi)
-plot(kgm_df$po2,kgm_df$phi)
-range(kgm_df$phi, na.rm = TRUE)
-range(kgm_df$pcrit, na.rm = TRUE)
+plot(kgm_df_bot$p_pcrit,kgm_df_bot$phi)
+plot(kgm_df_bot$temperature_C,kgm_df_bot$phi)
+plot(kgm_df_bot$po2,kgm_df_bot$phi)
+range(kgm_df_bot$phi, na.rm = TRUE)
+range(kgm_df_bot$pcrit, na.rm = TRUE)
 
 
 ### what combination of temperature and po2 leads to phi < 1?
-kgm_df_phi_lt_1 <- subset(kgm_df, phi < 1)
+kgm_df_phi_lt_1 <- subset(kgm_df_surf, phi < 1)
 plot(kgm_df_phi_lt_1$temperature_C, kgm_df_phi_lt_1$po2, 
   xlab = "Temperature (C)", ylab = "PO2 (kPa)", main = "Temperature vs PO2 for phi < 1")
 abline(h = 1, col = "red", lty = 2)
@@ -507,19 +507,17 @@ do_t |>
     data.frame(po2 = po2_kpa, temperature_C = temperature_C)
   }) |>
   list_rbind() -> kgm_df_grid_do_t
+setwd('c:/Users/brendan.turley/Documents/R_projects/metabolic_index_cmp')
 kgm_df_grid_do_t <- update_df(kgm_df_grid_do_t, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
 
 hist(kgm_df_grid_do_t$p_pcrit)
 hist(kgm_df_grid_do_t$phi)
 plot(kgm_df_grid_do_t$p_pcrit,kgm_df_grid_do_t$phi)
 
-phi_m <- matrix(kgm_df_grid_do_t$phi, nrow = length(unique(do_t$DO_mg_L)), 
+phi_m_t <- matrix(kgm_df_grid_do_t$phi, nrow = length(unique(do_t$DO_mg_L)), 
   ncol = length(unique(do_t$temperature_C)))
-image(unique(do_t$DO_mg_L), unique(do_t$temperature_C),  z = phi_m,
-  xlab = "DO (mg/L)", ylab = "Temperature (C)", main = "Phi across Temperature and DO",
-  col = hcl.colors(100, palette = "viridis"))
-contour(unique(do_t$DO_mg_L), unique(do_t$temperature_C), z = phi_m, add = TRUE, col = "white",
-  levels = 1)
+
+
 
 
 do_s <- expand.grid(DO_mg_L = seq(0,10,.1), temperature_C = 28, salinity_psu = seq(20,38,.5))
@@ -532,16 +530,35 @@ do_s |>
     data.frame(po2 = po2_kpa, temperature_C = temperature_C, salinity_psu = salinity_psu)
   }) |>
   list_rbind() -> kgm_df_grid_do_s
+setwd('c:/Users/brendan.turley/Documents/R_projects/metabolic_index_cmp')
 kgm_df_grid_do_s <- update_df(kgm_df_grid_do_s, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
 
 hist(kgm_df_grid_do_s$p_pcrit)
 hist(kgm_df_grid_do_s$phi)
 plot(kgm_df_grid_do_s$p_pcrit,kgm_df_grid_do_s$phi)
 
-phi_m <- matrix(kgm_df_grid_do_s$phi, nrow = length(unique(do_s$DO_mg_L)), 
+phi_m_s <- matrix(kgm_df_grid_do_s$phi, nrow = length(unique(do_s$DO_mg_L)), 
   ncol = length(unique(do_s$salinity_psu)))
-image(unique(do_s$DO_mg_L), unique(do_s$salinity_psu),  z = phi_m,
-  xlab = "DO (mg/L)", ylab = "Salinity (PSU)", main = "Phi across Salinity and DO",
+
+
+setwd("c:/Users/brendan.turley/Documents/R_projects/kgm-environ-sensitivity/figures")
+png('kgm_mi.png', width = 7, height = 4, units = 'in', res = 300)
+par(mfrow = c(1,2), mar = c(4, 4, 1, 1), oma = c(0, 0, 3, 0))
+image(unique(do_t$DO_mg_L), unique(do_t$temperature_C),  z = phi_m_t,
+  xlab = "DO (mg/L)", ylab = "Temperature (C)", 
+  # main = expression(paste('King Mackerel Metabolic Index (',phi, " = 1)")),
   col = hcl.colors(100, palette = "viridis"))
-contour(unique(do_s$DO_mg_L), unique(do_s$salinity_psu), z = phi_m, add = TRUE, col = "white",
+contour(unique(do_t$DO_mg_L), unique(do_t$temperature_C), z = phi_m_t, add = TRUE, col = "white",
   levels = 1)
+
+image(unique(do_s$DO_mg_L), unique(do_s$salinity_psu),  z = phi_m_s,
+  xlab = "DO (mg/L)", ylab = "Salinity (PSU)",
+  col = hcl.colors(100, palette = "viridis"))
+contour(unique(do_s$DO_mg_L), unique(do_s$salinity_psu), z = phi_m_s, add = TRUE, col = "white",
+  levels = 1)
+
+title(main = "King Mackerel Metabolic Index (Phi = 1)", outer = T)
+
+dev.off()
+
+
