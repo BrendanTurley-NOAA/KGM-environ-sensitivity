@@ -14,6 +14,7 @@ library(Matrix)
 library(worrms)
 library(purrr)
 library(gsw)
+library(cmocean)
 conflicted::conflict_prefer("select", "dplyr")
 conflicted::conflict_prefer("filter", "dplyr")
 
@@ -24,58 +25,97 @@ kelvin <- function(x) {x + 273.15}
 find_index <- function(x, y) {y <- which(y == x)}
 
 #' Convert Dissolved Oxygen from mg/L to umol/kg
-#'
 #' @param DO_mg_L   Dissolved oxygen concentration in mg/L
 #' @param temp_c    In situ water temperature in degrees Celsius
 #' @param sal_psu   Practical Salinity (PSU)
 #' @param depth_m   Sampling depth in meters
 #' @param lat       Latitude in decimal degrees (e.g., 27.0 for Gulf of Mexico)
 #' @return Dissolved oxygen in umol/kg
-convert_DO_mgL_to_umol_kg <- function(DO_mg_L, temp_c, sal_psu, depth_m, lat = 27.0) {
-  # 1. Convert depth to pressure in dbar
+# convert_DO_mgL_to_umol_kg <- function(DO_mg_L, temp_c, sal_psu, depth_m, lat = 27.0) {
+#   # 1. Convert depth to pressure in dbar
+#   press_dbar <- gsw_p_from_z(-depth_m, latitude = lat)
+  
+#   # 2. Convert Practical Salinity to Absolute Salinity (g/kg)
+#   SA <- gsw_SA_from_SP(sal_psu, press_dbar, longitude = -90.0, latitude = lat)
+  
+#   # 3. Convert in situ temperature to Conservative Temperature (°C)
+#   CT <- gsw_CT_from_t(SA, temp_c, press_dbar)
+  
+#   # 4. Calculate in situ density (kg/m^3)
+#   rho_kg_m3 <- gsw_rho(SA, CT, press_dbar)
+  
+#   # 5. Density in kg/L
+#   rho_kg_L <- rho_kg_m3 / 1000
+  
+#   # 6. Molecular weight of O2 (g/mol = mg/mmol)
+#   mw_O2 <- 31.9988
+  
+#   # Convert: (mg/L / (31.9988 mg/mmol)) * 1000 umol/mmol / rho_kg_L
+#   DO_umol_kg <- (DO_mg_L / mw_O2) * (1000 / rho_kg_L)
+  
+#   return(DO_umol_kg)
+# }
+convert_DO_mgL_to_umol_kg <- function(DO_mg_L, temp_c, sal_psu, depth_m, lat = 27.0, lon = -90.0) {
   press_dbar <- gsw_p_from_z(-depth_m, latitude = lat)
-  
-  # 2. Convert Practical Salinity to Absolute Salinity (g/kg)
-  SA <- gsw_SA_from_SP(sal_psu, press_dbar, longitude = -90.0, latitude = lat)
-  
-  # 3. Convert in situ temperature to Conservative Temperature (°C)
+  SA <- gsw_SA_from_SP(sal_psu, press_dbar, longitude = lon, latitude = lat)
   CT <- gsw_CT_from_t(SA, temp_c, press_dbar)
   
-  # 4. Calculate in situ density (kg/m^3)
-  rho_kg_m3 <- gsw_rho(SA, CT, press_dbar)
-  
-  # 5. Density in kg/L
-  rho_kg_L <- rho_kg_m3 / 1000
-  
-  # 6. Molecular weight of O2 (g/mol = mg/mmol)
+  rho_kg_L <- gsw_rho(SA, CT, press_dbar) / 1000
   mw_O2 <- 31.9988
   
-  # Convert: (mg/L / (31.9988 mg/mmol)) * 1000 umol/mmol / rho_kg_L
   DO_umol_kg <- (DO_mg_L / mw_O2) * (1000 / rho_kg_L)
-  
   return(DO_umol_kg)
 }
 
-convert_umol_kg_to_kPa <- function(salinity_psu, depth_m, longitude, latitude, temp_c, O2_umol_kg) {
-  gas_const = 8.31
-  partial_molar_vol = 0.000032
-  boltz = 0.000086173324
+# convert_umol_kg_to_kPa <- function(salinity_psu, depth_m, longitude, latitude, temp_c, O2_umol_kg) {
+#   gas_const = 8.31
+#   partial_molar_vol = 0.000032
+#   boltz = 0.000086173324
   
+#   press_dbar <- gsw_p_from_z(-depth_m, latitude = latitude)
+#   SA = gsw_SA_from_SP(salinity_psu, press_dbar, longitude, latitude) #absolute salinity for pot T calc
+#   pt = gsw_pt_from_t(SA, temp_c, press_dbar) #potential temp at a particular depth
+#   O2_Sat0 = gsw_O2sol_SP_pt(salinity_psu, pt)
+
+#   press = exp(depth_m * 10000 * partial_molar_vol / gas_const / kelvin(temp_c))
+#   O2_satdepth = O2_Sat0 * press
+
+#   #solubility at p=0
+#   sol0 = O2_Sat0 / 0.209
+#   sol_Dep = sol0 * press
+#   po2 = O2_umol_kg / sol_Dep
+#   po2 <- po2 * 101.325 # convert to kPa
+
+#   return(po2)
+# }
+convert_umol_kg_to_kPa <- function(salinity_psu, depth_m, longitude, latitude, temp_c, O2_umol_kg) {
+  R <- 8.3144626          # Universal gas constant (J / mol*K)
+  Vm_O2 <- 3.2e-5         # Partial molar volume of O2 (m^3 / mol)
+  x_O2 <- 0.20946         # Mole fraction of O2 in dry air
+  P_atm_kPa <- 101.325    # Standard atmospheric pressure (kPa)
+  temp_K <- temp_c + 273.15
+  
+  # 1. Surface equilibrium O2 concentration (umol/kg) at 1 atm moist air
   press_dbar <- gsw_p_from_z(-depth_m, latitude = latitude)
-  SA = gsw_SA_from_SP(salinity_psu, press_dbar, longitude, latitude) #absolute salinity for pot T calc
-  pt = gsw_pt_from_t(SA, temp_c, press_dbar) #potential temp at a particular depth
-  O2_Sat0 = gsw_O2sol_SP_pt(salinity_psu, pt)
-
-  press = exp(depth_m * 10000 * partial_molar_vol / gas_const / kelvin(temp_c))
-  O2_satdepth = O2_Sat0 * press
-
-  #solubility at p=0
-  sol0 = O2_Sat0 / 0.209
-  sol_Dep = sol0 * press
-  po2 = O2_umol_kg / sol_Dep
-  po2 <- po2 * 101.325 # convert to kPa
-
-  return(po2)
+  SA <- gsw_SA_from_SP(salinity_psu, press_dbar, longitude = longitude, latitude = latitude)
+  pt <- gsw_pt_from_t(SA, temp_c, press_dbar)
+  O2_sat0 <- gsw_O2sol_SP_pt(salinity_psu, pt)
+  
+  # 2. Water vapor pressure (kPa) via Weiss & Price (1980) to get exact surface pO2
+  # Accounts for salinity depression of vapor pressure
+  pH2O_atm <- exp(24.4543 - 67.4509 * (100 / temp_K) - 4.8489 * log(temp_K / 100) - 0.000544 * salinity_psu)
+  pO2_sat0_kPa <- x_O2 * (P_atm_kPa - (pH2O_atm * P_atm_kPa))
+  
+  # 3. Henry's law solubility at surface (umol / kg / kPa)
+  sol_0 <- O2_sat0 / pO2_sat0_kPa
+  
+  # 4. Adjust solubility for hydrostatic pressure (negative exponent!)
+  # 1 dbar = 10,000 Pa
+  sol_depth <- sol_0 * exp((-press_dbar * 1e4 * Vm_O2) / (R * temp_K))
+  
+  # 5. Calculate in situ pO2 in kPa
+  po2_kPa <- O2_umol_kg / sol_depth
+  return(po2_kPa)
 }
 
 filter_data <- function(data.df) {
@@ -453,12 +493,13 @@ load('c:/Users/brendan.turley/Documents/R_projects/KGM-environ-sensitivity/data/
 
 ### surface
 do_umol_kg <- convert_DO_mgL_to_umol_kg(DO_mg_L = kmk_pos$OXYSURF, temp_c = kmk_pos$TEMPSURF, 
-  sal_psu = kmk_pos$SALSURF, depth_m = 2)
+  sal_psu = kmk_pos$SALSURF, depth_m = 2, lat = kmk_pos$lat, lon = kmk_pos$lon)
 po2_kpa <- convert_umol_kg_to_kPa(salinity_psu = kmk_pos$SALSURF, depth_m = 2, longitude = kmk_pos$lon,
   latitude = kmk_pos$lat, temp_c = kmk_pos$TEMPSURF, O2_umol_kg = do_umol_kg)
 
 setwd('c:/Users/brendan.turley/Documents/R_projects/metabolic_index_cmp')
-kgm_df_surf <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMPSURF)
+kgm_df_surf <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMPSURF,
+  lat = kmk_pos$lat, lon = kmk_pos$lon, DO_mg_L = kmk_pos$OXYSURF, month = kmk_pos$month)
 kgm_df_surf <- update_df(kgm_df_surf, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
 
 hist(kgm_df_surf$p_pcrit)
@@ -467,18 +508,21 @@ hist(kgm_df_surf$phi)
 hist(po2_kpa)
 plot(kgm_df_surf$p_pcrit,kgm_df_surf$phi)
 plot(kgm_df_surf$temperature_C,kgm_df_surf$phi)
+abline(h = 1, col = "red", lty = 2)
 plot(kgm_df_surf$po2,kgm_df_surf$phi)
+abline(h = 1, col = "red", lty = 2)
 range(kgm_df_surf$phi, na.rm = TRUE)
 range(kgm_df_surf$pcrit, na.rm = TRUE)
 
 ### bottom
 do_umol_kg <- convert_DO_mgL_to_umol_kg(DO_mg_L = kmk_pos$OXYMAX, temp_c = kmk_pos$TEMP_BOT, 
-  sal_psu = kmk_pos$SALMAX, depth_m = kmk_pos$depth)
+  sal_psu = kmk_pos$SALMAX, depth_m = kmk_pos$depth, lat = kmk_pos$lat, lon = kmk_pos$lon)
 po2_kpa <- convert_umol_kg_to_kPa(salinity_psu = kmk_pos$SALMAX, depth_m = kmk_pos$depth, longitude = kmk_pos$lon,
   latitude = kmk_pos$lat, temp_c = kmk_pos$TEMP_BOT, O2_umol_kg = do_umol_kg)
 
 setwd('c:/Users/brendan.turley/Documents/R_projects/metabolic_index_cmp')
-kgm_df_bot <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMP_BOT)
+kgm_df_bot <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMP_BOT, 
+  lat = kmk_pos$lat, lon = kmk_pos$lon, DO_mg_L = kmk_pos$OXYMAX, month = kmk_pos$month)
 kgm_df_bot <- update_df(kgm_df_bot, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
 
 hist(kgm_df_bot$p_pcrit)
@@ -486,18 +530,22 @@ hist(kgm_df_bot$phi)
 hist(po2_kpa)
 plot(kgm_df_bot$p_pcrit,kgm_df_bot$phi)
 plot(kgm_df_bot$temperature_C,kgm_df_bot$phi)
+abline(h = 1, col = "red", lty = 2)
 plot(kgm_df_bot$po2,kgm_df_bot$phi)
+abline(h = 1, col = "red", lty = 2)
 range(kgm_df_bot$phi, na.rm = TRUE)
 range(kgm_df_bot$pcrit, na.rm = TRUE)
 
 
 ### what combination of temperature and po2 leads to phi < 1?
-kgm_df_phi_lt_1 <- subset(kgm_df_surf, phi < 1)
-plot(kgm_df_phi_lt_1$temperature_C, kgm_df_phi_lt_1$po2, 
-  xlab = "Temperature (C)", ylab = "PO2 (kPa)", main = "Temperature vs PO2 for phi < 1")
-abline(h = 1, col = "red", lty = 2)
+range(kmk_pos$OXYMAX, na.rm = T)
+range(kmk_pos$OXYSURF, na.rm = T)
+range(kmk_pos$TEMP_BOT, na.rm = T)
+range(kmk_pos$TEMPSURF, na.rm = T)
+range(kmk_pos$SALMAX, na.rm = T)
+range(kmk_pos$SALSURF, na.rm = T)
 
-do_t <- expand.grid(DO_mg_L = seq(0,10,.1), temperature_C = seq(20,40,1))
+do_t <- expand.grid(DO_mg_L = seq(0,12,.1), temperature_C = seq(15,40,1))
 do_t |>
   pmap(function(DO_mg_L, temperature_C) {
     do_umol_kg <- convert_DO_mgL_to_umol_kg(DO_mg_L = DO_mg_L, temp_c = temperature_C, 
@@ -508,19 +556,20 @@ do_t |>
   }) |>
   list_rbind() -> kgm_df_grid_do_t
 setwd('c:/Users/brendan.turley/Documents/R_projects/metabolic_index_cmp')
-kgm_df_grid_do_t <- update_df(kgm_df_grid_do_t, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
+kgm_df_grid_do_t <- update_df(kgm_df_grid_do_t, taxa.name = 'Scomberomorus cavalla', w = 1000, pcrit_type = "smr")
 
-hist(kgm_df_grid_do_t$p_pcrit)
-hist(kgm_df_grid_do_t$phi)
-plot(kgm_df_grid_do_t$p_pcrit,kgm_df_grid_do_t$phi)
+# hist(kgm_df_grid_do_t$p_pcrit)
+# hist(kgm_df_grid_do_t$phi)
+# plot(kgm_df_grid_do_t$p_pcrit,kgm_df_grid_do_t$phi)
 
 phi_m_t <- matrix(kgm_df_grid_do_t$phi, nrow = length(unique(do_t$DO_mg_L)), 
+  ncol = length(unique(do_t$temperature_C)))
+pcrit_m_t <- matrix(kgm_df_grid_do_t$p_pcrit, nrow = length(unique(do_t$DO_mg_L)), 
   ncol = length(unique(do_t$temperature_C)))
 
 
 
-
-do_s <- expand.grid(DO_mg_L = seq(0,10,.1), temperature_C = 28, salinity_psu = seq(20,38,.5))
+do_s <- expand.grid(DO_mg_L = seq(0,12,.1), temperature_C = 28, salinity_psu = seq(5,38,.5))
 do_s |>
   pmap(function(DO_mg_L, temperature_C, salinity_psu) {
     do_umol_kg <- convert_DO_mgL_to_umol_kg(DO_mg_L = DO_mg_L, temp_c = temperature_C, 
@@ -531,34 +580,59 @@ do_s |>
   }) |>
   list_rbind() -> kgm_df_grid_do_s
 setwd('c:/Users/brendan.turley/Documents/R_projects/metabolic_index_cmp')
-kgm_df_grid_do_s <- update_df(kgm_df_grid_do_s, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
+kgm_df_grid_do_s <- update_df(kgm_df_grid_do_s, taxa.name = 'Scomberomorus cavalla', w = 1000, pcrit_type = "smr")
 
-hist(kgm_df_grid_do_s$p_pcrit)
-hist(kgm_df_grid_do_s$phi)
-plot(kgm_df_grid_do_s$p_pcrit,kgm_df_grid_do_s$phi)
+# hist(kgm_df_grid_do_s$p_pcrit)
+# hist(kgm_df_grid_do_s$phi)
+# plot(kgm_df_grid_do_s$p_pcrit,kgm_df_grid_do_s$phi)
 
 phi_m_s <- matrix(kgm_df_grid_do_s$phi, nrow = length(unique(do_s$DO_mg_L)), 
   ncol = length(unique(do_s$salinity_psu)))
+pcrit_m_s <- matrix(kgm_df_grid_do_s$p_pcrit, nrow = length(unique(do_s$DO_mg_L)), 
+  ncol = length(unique(do_s$salinity_psu)))
+
 
 
 setwd("c:/Users/brendan.turley/Documents/R_projects/kgm-environ-sensitivity/figures")
-png('kgm_mi.png', width = 7, height = 4, units = 'in', res = 300)
+png('kgm_mi.png', width = 8, height = 4, units = 'in', res = 300)
 par(mfrow = c(1,2), mar = c(4, 4, 1, 1), oma = c(0, 0, 3, 0))
+
 image(unique(do_t$DO_mg_L), unique(do_t$temperature_C),  z = phi_m_t,
   xlab = "DO (mg/L)", ylab = "Temperature (C)", 
   # main = expression(paste('King Mackerel Metabolic Index (',phi, " = 1)")),
-  col = hcl.colors(100, palette = "viridis"))
-contour(unique(do_t$DO_mg_L), unique(do_t$temperature_C), z = phi_m_t, add = TRUE, col = "white",
-  levels = 1)
+  col = cmocean('solar')(100))
+# contour(unique(do_t$DO_mg_L), unique(do_t$temperature_C), z = phi_m_t, add = TRUE, col = "white",
+#   levels = 1)
+contour(unique(do_t$DO_mg_L), unique(do_t$temperature_C), z = 1 - pcrit_m_t, add = TRUE, col = "white",
+  levels = seq(0,.9,.1))
+points(kmk_pos$OXYMAX, kmk_pos$TEMP_BOT, bg = rgb(t(col2rgb("orange"))/255, alpha = 0.7), pch = 21, cex = .7)
+points(kmk_pos$OXYSURF, kmk_pos$TEMPSURF, bg = rgb(t(col2rgb("dodgerblue"))/255, alpha = 0.7), pch = 24, cex = .7)
+legend("topright", legend = c("Bottom", "Surface"), 
+  pch = c(21, 24), pt.bg = c(rgb(t(col2rgb("orange"))/255, alpha = 0.7), 
+  rgb(t(col2rgb("dodgerblue"))/255, alpha = 0.7)), cex = .7)
 
 image(unique(do_s$DO_mg_L), unique(do_s$salinity_psu),  z = phi_m_s,
   xlab = "DO (mg/L)", ylab = "Salinity (PSU)",
-  col = hcl.colors(100, palette = "viridis"))
-contour(unique(do_s$DO_mg_L), unique(do_s$salinity_psu), z = phi_m_s, add = TRUE, col = "white",
-  levels = 1)
+  col = cmocean('solar')(100))
+# contour(unique(do_s$DO_mg_L), unique(do_s$salinity_psu), z = phi_m_s, add = TRUE, col = "white",
+#   levels = 1)
+contour(unique(do_s$DO_mg_L), unique(do_s$salinity_psu), z = 1 - pcrit_m_s, add = TRUE, col = "white",
+  levels = seq(0,.9,.1))
+points(kmk_pos$OXYMAX, kmk_pos$SALMAX, bg = rgb(t(col2rgb("orange"))/255, alpha = 0.7), pch = 21, cex = .7)
+points(kmk_pos$OXYSURF, kmk_pos$SALSURF, bg = rgb(t(col2rgb("dodgerblue"))/255, alpha = 0.7), pch = 24, cex = .7)
 
-title(main = "King Mackerel Metabolic Index (Phi = 1)", outer = T)
+title(main = expression(paste('King Mackerel Metabolic Index (',phi, ")")), outer = T)
 
 dev.off()
 
 
+plot(kgm_df_surf$lon, kgm_df_surf$lat, pch = 21, asp = 1)#, bg = kgm_df_surf$phi)
+with(subset(kgm_df_bot, phi < 1), 
+  points(lon, lat, cex = 3,
+    pch = 21, bg =  rgb(t(col2rgb("orange"))/255, alpha = 0.7)))
+with(subset(kgm_df_surf, phi < 1), 
+  points(lon, lat, cex = 1.5,
+    pch = 21, bg =  rgb(t(col2rgb("dodgerblue"))/255, alpha = 0.7)))
+
+boxplot(phi ~ month, data = kgm_df_surf, main = "Surface Phi by Month", xlab = "Month", ylab = "Phi")
+boxplot(phi ~ month, data = kgm_df_bot, main = "Bottom Phi by Month", xlab = "Month", ylab = "Phi")
