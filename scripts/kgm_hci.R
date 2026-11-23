@@ -30,11 +30,11 @@ for (f in fi) {
   print(which(fi == f) / length(fi))
   sst <- readRDS(f_ls[f])
   ### matrix of HCI time series for each file
-  hr1 <- apply(sst$sst, 3, function(x) sum(which(x > 20 & x < 30)))
+  hr1 <- apply(sst$sst, 3, function(x) sum(which(x >= lower & x <= upper)))
   ht1 <- apply(sst$sst, 3, function(x) sum(which(!is.na(x))))
   hci_ts[which(fi == f), 1:length(hr1)] <- hr1 / ht1
 
-  hr2 <- apply(sst$sst, c(1, 2), function(x) sum(which(x > 20 & x < 30)))
+  hr2 <- apply(sst$sst, c(1, 2), function(x) sum(which(x >= lower & x <= upper)))
   ht2 <- apply(sst$sst, c(1, 2), function(x) sum(which(!is.na(x))))
   hci_mts[which(fi == f), , ] <- hr2 / ht2
 }
@@ -77,7 +77,8 @@ slopes <- apply(hci_ts, 2, function(x) {
   }
   lm(x ~ c(1:length(x))) |> summary() |> coef()
 })
-slopes[2, which(slopes[8, ] < .05)] |> hist()
+# slopes[2, which(slopes[8, ] <= .05)] |> hist()
+
 plot(
   1:366,
   slopes[2, ],
@@ -88,8 +89,8 @@ plot(
 )
 abline(h = 0, col = 'red', lty = 2)
 points(
-  c(1:366)[which(slopes[8, ] < .05)],
-  slopes[2, which(slopes[8, ] < .05)],
+  c(1:366)[which(slopes[8, ] <= .05)],
+  slopes[2, which(slopes[8, ] <= .05)],
   col = 'blue',
   pch = 16
 )
@@ -104,10 +105,11 @@ slopes_m <- apply(hci_mts, c(2, 3), function(x) {
 
 hist(slopes_m, main = 'Histogram of Slopes', xlab = 'Slope', breaks = 30)
 range(slopes_m, na.rm = TRUE)
-b_brks <- seq(-.009, .009, length.out = 30)
+b_brks <- seq(-.009, .009, by = 0.0006) #length.out = 30)
 b_col <- cmocean::cmocean('balance')(length(b_brks)-1)
 
 imagePlot(slopes_m, breaks = b_brks, col = b_col)
+contour(slopes_m, add = TRUE, col = 'gray20', levels = 0)
 
 
 ### terra
@@ -183,7 +185,7 @@ for (i in styear:enyear) {
   sst_r <- crop(sst_r, gulf_shelf) |> mask(gulf_shelf)
 
   ### find number of cells per time step x > 20 & x < 30 in raster sst_r
-  hot_cells <- sst_r > lower & sst_r < upper
+  hot_cells <- sst_r >= lower & sst_r <= upper
   valid_cells <- !is.na(sst_r)
   ### sum per time step
   hot_count <- global(hot_cells, sum, na.rm = TRUE)
@@ -192,6 +194,7 @@ for (i in styear:enyear) {
 }
 setwd("c:/Users/brendan.turley/Documents/R_projects/kgm-environ-sensitivity/data")
 save(hci_ts, hci_mts, hci_ts2, file = "kgm_habitat_compression.RData") ### need to rerun when coraltemp server is available
+load("kgm_habitat_compression.RData")
 
 ### decadal medians
 yrs <- styear:enyear
@@ -225,8 +228,6 @@ matplot(jday$date,
 )
 axis.Date(1, at = jday$date[which(format(jday$date, "%d") == "01")], format = "%b")
 
-
-
 xs <- c(jday$date, rev(jday$date))
 yiqr <- c(
   apply(hci_ts2, 2, quantile, probs = 0.25, na.rm = TRUE),
@@ -238,16 +239,15 @@ ymx <- c(
 )
 
 
-
 setwd("c:/Users/brendan.turley/Documents/R_projects/kgm-environ-sensitivity/figures")
 png('kgm_hci_stats.png', width = 7, height = 5, units = 'in', res = 300)
 par(mfrow = c(2,2), mar = c(3, 4, 2, 1))
 plot(1985:2025, apply(hci_ts2, 1, mean, na.rm = TRUE), 
   type = 'o', pch =16, col = 4, las = 1,
-  main = 'Mean HCI', ylab = 'HCI', xlab = '')
+  ylab = expression(paste('HCI (', bar(x), ')')), xlab = '')
 plot(1985:2025, apply(hci_ts2, 1, sd, na.rm = TRUE), 
   type = 'o', pch =16, col = 3, las = 1,
-  main = 'SD of HCI', ylab = 'HCI', xlab = '')
+  ylab = 'HCI (std dev)', xlab = '')
 plot(1985:2025, apply(hci_ts2, 1, function(x) length(which(x == 1))), 
   type = 'o', pch =16, col = 2, las = 1,
   main = 'Number of Days HCI = 1', ylab = 'Days')
