@@ -225,8 +225,7 @@ matplot(jday$date,
 )
 axis.Date(1, at = jday$date[which(format(jday$date, "%d") == "01")], format = "%b")
 
-plot(1985:2025, apply(hci_ts2, 1, mean, na.rm = TRUE), type = 'b')
-plot(1985:2025, apply(hci_ts2, 1, sd, na.rm = TRUE), type = 'b')
+
 
 xs <- c(jday$date, rev(jday$date))
 yiqr <- c(
@@ -238,20 +237,24 @@ ymx <- c(
   rev(apply(hci_ts2, 2, max, na.rm = TRUE))
 )
 
-plot(jday$date, apply(hci_ts2, 2, median, na.rm = TRUE), type = 'l', ylim = c(0, 1), xaxt = 'n', lwd = 2)
-axis.Date(1, at = jday$date[which(format(jday$date, "%d") == "01")], format = "%b")
-polygon(xs, ymx, col = rgb(1, 0, 0, 0.3), border = NA)
-polygon(xs, yiqr, col = rgb(0, 0, 1, 0.3), border = NA)
-points(jday$date, yr_80, type = 'l', col = dcols[1], lwd = 2)
-points(jday$date, yr_90, type = 'l', col = dcols[2], lwd = 2)
-points(jday$date, yr_00, type = 'l', col = dcols[3], lwd = 2)
-points(jday$date, yr_10, type = 'l', col = dcols[4], lwd = 2)
-points(jday$date, yr_20, type = 'l', col = dcols[5], lwd = 2)
 
-plot(1985:2025, apply(hci_ts2, 1, function(x) length(which(x == 1))), type = 'b',
-  main = 'Number of Days HCI = 1')
-plot(1985:2025, apply(hci_ts2, 1, function(x) which(x == 1)[1]), type = 'b',
-  main = 'First Jday HCI = 1')
+
+setwd("c:/Users/brendan.turley/Documents/R_projects/kgm-environ-sensitivity/figures")
+png('kgm_hci_stats.png', width = 7, height = 5, units = 'in', res = 300)
+par(mfrow = c(2,2), mar = c(3, 4, 2, 1))
+plot(1985:2025, apply(hci_ts2, 1, mean, na.rm = TRUE), 
+  type = 'o', pch =16, col = 4, las = 1,
+  main = 'Mean HCI', ylab = 'HCI', xlab = '')
+plot(1985:2025, apply(hci_ts2, 1, sd, na.rm = TRUE), 
+  type = 'o', pch =16, col = 3, las = 1,
+  main = 'SD of HCI', ylab = 'HCI', xlab = '')
+plot(1985:2025, apply(hci_ts2, 1, function(x) length(which(x == 1))), 
+  type = 'o', pch =16, col = 2, las = 1,
+  main = 'Number of Days HCI = 1', ylab = 'Days')
+plot(1985:2025, apply(hci_ts2, 1, function(x) which(x == 1)[1]), 
+  type = 'o', pch =16, col = 1, las = 1,
+  main = 'First Jday HCI = 1', ylab = 'Julian Day', xlab = '')
+dev.off()
 
 # extract linear slope from matrix of HCI time series
 slopes <- apply(hci_ts2, 2, function(x) {
@@ -280,9 +283,44 @@ points(
 )
 
 
+setwd("c:/Users/brendan.turley/Documents/R_projects/kgm-environ-sensitivity/figures")
+png('kgm_hci_climatology.png', width = 12, height = 6, units = 'in', res = 300)
+par(mfrow = c(2,2), mar = c(3, 4, 2, 1))
+plot(jday$date, apply(hci_ts2, 2, median, na.rm = TRUE), 
+  type = 'n', ylim = c(0, 1), xaxt = 'n', xlab = '', ylab = 'HCI', las = 1)
+axis.Date(1, at = jday$date[which(format(jday$date, "%d") == "01")], format = "%b")
+polygon(xs, ymx, col = rgb(t(col2rgb('gold'))/255, alpha = 0.3), border = NA)
+polygon(xs, yiqr, col = rgb(t(col2rgb('purple3'))/255, alpha = 0.4), border = NA)
+points(jday$date, apply(hci_ts2, 2, median, na.rm = TRUE), type = 'l', lwd = 2)
+legend('bottomright', legend = c('Median', 'IQR', 'Min/Max'), 
+  fill = c('black', 'purple3', 'gold'), bty = 'n', cex = .8)
+
+plot(jday$date, apply(hci_ts2, 2, median, na.rm = TRUE), 
+  type = 'n', ylim = c(0, 1), xaxt = 'n', xlab = '', ylab = 'HCI', las = 1)
+axis.Date(1, at = jday$date[which(format(jday$date, "%d") == "01")], format = "%b")
+polygon(xs, ymx, col = rgb(t(col2rgb('purple3'))/255, alpha = 0.3), border = NA)
+# polygon(xs, yiqr, col = rgb(t(col2rgb('purple3'))/255, alpha = 0.3), border = NA)
+points(jday$date, yr_80, type = 'l', col = dcols[1], lwd = 2)
+points(jday$date, yr_90, type = 'l', col = dcols[2], lwd = 2)
+points(jday$date, yr_00, type = 'l', col = dcols[3], lwd = 2)
+points(jday$date, yr_10, type = 'l', col = dcols[4], lwd = 2)
+points(jday$date, yr_20, type = 'l', col = dcols[5], lwd = 2)
+legend('bottomright', legend = c('1980s', '1990s', '2000s', '2010s', '2020s'), 
+  col = dcols, lwd = 2, bty = 'n', cex = .8)
+
+# plot(jday$date, slopes[2, ] * 41,
+#   main = 'Linear Slope of HCI Time Series',
+#   type = 'h', xaxt = 'n', xlab = '', ylab = 'Slope', las = 1)
+# axis.Date(1, at = jday$date[which(format(jday$date, "%d") == "01")], format = "%b")
+# abline(h = 0, col = 'red', lty = 2, lwd = 2)
+# points(jday$date[which(slopes[8, ] < .05)],
+#   slopes[2, which(slopes[8, ] < .05)] * 41,
+#   col = 'blue', pch = 16)
+# legend('bottomright', legend = c('Significant'), col = 'blue', pch = 16, bty = 'n', cex = .8)
+
 plot(jday$date, apply(hci_ts2, 2, median, na.rm = TRUE),
   type = 'l', ylim = c(0, 1.2), xaxt = 'n', lwd = 2,
-  main = 'HCI slope')
+  main = 'HCI slope', xlab = '', ylab = 'HCI', las = 1)
 axis.Date(1, at = jday$date[which(format(jday$date, "%d") == "01")], format = "%b")
 # polygon(xs, ymx, col = rgb(1, 0, 0, 0.3), border = NA)
 # polygon(xs, yiqr, col = rgb(0, 0, 1, 0.3), border = NA)
@@ -290,5 +328,12 @@ arrows(jday$date,
   apply(hci_ts2, 2, median, na.rm = TRUE), 
   jday$date, 
   apply(hci_ts2, 2, median, na.rm = TRUE) + slopes[2, ] * 41, 
-  length = 0.02, col = 1)
+  length = 0.05, lwd = .7, col = ifelse(slopes[2, ] > 0, 'green3', 'orange'))
+points(jday$date[which(slopes[8, ] < .05)],
+  apply(hci_ts2, 2, median, na.rm = TRUE)[which(slopes[8, ] < .05)],
+  bg = 'purple', pch = 21, cex = .7)
+legend('bottomright', legend = c('Significant'), 
+  pt.bg = 'purple', pch = 21, bty = 'n', cex = .8)
+
+dev.off()
 
