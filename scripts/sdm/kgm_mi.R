@@ -502,7 +502,7 @@ kgm_df_surf <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMPSURF,
   lat = kmk_pos$lat, lon = kmk_pos$lon, DO_mg_L = kmk_pos$OXYSURF, month = kmk_pos$month)
 kgm_df_surf <- update_df(kgm_df_surf, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
 
-hist(kgm_df_surf$p_pcrit)
+# hist(kgm_df_surf$p_pcrit)
 hist(kgm_df_surf$pcrit)
 hist(kgm_df_surf$phi)
 hist(po2_kpa)
@@ -525,7 +525,7 @@ kgm_df_bot <- data.frame(po2 = po2_kpa, temperature_C = kmk_pos$TEMP_BOT,
   lat = kmk_pos$lat, lon = kmk_pos$lon, DO_mg_L = kmk_pos$OXYMAX, month = kmk_pos$month)
 kgm_df_bot <- update_df(kgm_df_bot, taxa.name = 'Scomberomorus cavalla', w = 300, pcrit_type = "smr")
 
-hist(kgm_df_bot$p_pcrit)
+# hist(kgm_df_bot$p_pcrit)
 hist(kgm_df_bot$phi)
 hist(po2_kpa)
 plot(kgm_df_bot$p_pcrit,kgm_df_bot$phi)
@@ -598,28 +598,30 @@ png('kgm_mi.png', width = 8, height = 4, units = 'in', res = 300)
 par(mfrow = c(1,2), mar = c(4, 4, 1, 1), oma = c(0, 0, 3, 0))
 
 image(unique(do_t$DO_mg_L), unique(do_t$temperature_C),  z = phi_m_t,
-  xlab = "DO (mg/L)", ylab = "Temperature (C)", 
+  xlab = "DO (mg/L)", ylab = "Temperature (C)", las = 1,
   # main = expression(paste('King Mackerel Metabolic Index (',phi, " = 1)")),
   col = cmocean('solar')(100))
 # contour(unique(do_t$DO_mg_L), unique(do_t$temperature_C), z = phi_m_t, add = TRUE, col = "white",
 #   levels = 1)
 contour(unique(do_t$DO_mg_L), unique(do_t$temperature_C), z = 1 - pcrit_m_t, add = TRUE, col = "white",
-  levels = seq(0,.9,.1))
-points(kmk_pos$OXYMAX, kmk_pos$TEMP_BOT, bg = rgb(t(col2rgb("orange"))/255, alpha = 0.7), pch = 21, cex = .7)
-points(kmk_pos$OXYSURF, kmk_pos$TEMPSURF, bg = rgb(t(col2rgb("dodgerblue"))/255, alpha = 0.7), pch = 24, cex = .7)
+  # levels = seq(0,.9,.1), labels = paste0(seq(0,90,10),'%'))
+  levels = c(.1,.25,.5,.75,.9), labels = paste0(c(10,25,50,75,90),'%'))
+points(kmk_pos$OXYMAX, kmk_pos$TEMP_BOT, bg = rgb(t(col2rgb("magenta"))/255, alpha = 0.7), pch = 21, cex = .7)
+points(kmk_pos$OXYSURF, kmk_pos$TEMPSURF, bg = rgb(t(col2rgb("skyblue"))/255, alpha = 0.7), pch = 24, cex = .7)
 legend("topright", legend = c("Bottom", "Surface"), 
-  pch = c(21, 24), pt.bg = c(rgb(t(col2rgb("orange"))/255, alpha = 0.7), 
-  rgb(t(col2rgb("dodgerblue"))/255, alpha = 0.7)), cex = .7)
+  pch = c(21, 24), pt.bg = c(rgb(t(col2rgb("magenta"))/255, alpha = 0.7), 
+  rgb(t(col2rgb("skyblue"))/255, alpha = 0.7)), cex = .7)
 
 image(unique(do_s$DO_mg_L), unique(do_s$salinity_psu),  z = phi_m_s,
-  xlab = "DO (mg/L)", ylab = "Salinity (PSU)",
+  xlab = "DO (mg/L)", ylab = "Salinity (PSU)", las = 1,
   col = cmocean('solar')(100))
 # contour(unique(do_s$DO_mg_L), unique(do_s$salinity_psu), z = phi_m_s, add = TRUE, col = "white",
 #   levels = 1)
 contour(unique(do_s$DO_mg_L), unique(do_s$salinity_psu), z = 1 - pcrit_m_s, add = TRUE, col = "white",
-  levels = seq(0,.9,.1))
-points(kmk_pos$OXYMAX, kmk_pos$SALMAX, bg = rgb(t(col2rgb("orange"))/255, alpha = 0.7), pch = 21, cex = .7)
-points(kmk_pos$OXYSURF, kmk_pos$SALSURF, bg = rgb(t(col2rgb("dodgerblue"))/255, alpha = 0.7), pch = 24, cex = .7)
+  # levels = seq(0,.9,.1), labels = paste0(seq(0,90,10),'%'))
+  levels = c(.1,.25,.5,.75,.9), labels = paste0(c(10,25,50,75,90),'%'))
+points(kmk_pos$OXYMAX, kmk_pos$SALMAX, bg = rgb(t(col2rgb("magenta"))/255, alpha = 0.7), pch = 21, cex = .7)
+points(kmk_pos$OXYSURF, kmk_pos$SALSURF, bg = rgb(t(col2rgb("skyblue"))/255, alpha = 0.7), pch = 24, cex = .7)
 
 title(main = expression(paste('King Mackerel Metabolic Index (',phi, ")")), outer = T)
 
