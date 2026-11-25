@@ -23,10 +23,13 @@ kmk_neg <- subset(kmk_neg,
 kmk_pos <- subset(kmk_pos, lon<=(-88))
 kmk_neg <- subset(kmk_neg, lon<=(-88))
 nrow(kmk_neg)/ nrow(kmk_pos)
+summary(rbind(kmk_pos, kmk_neg))
+summary(kmk_pos)
 
 kmack_data <- rbind(kmk_pos, kmk_neg) |> 
   # select(lon, lat, year, season, catch_kg, effort_hrs, sst, chl_a, depth_m)
-  select(lon, lat, year, month, catch_kg = select_bgs, effort_hrs = hrs_fish, sst = tempsurf, chl_a = chlorsurf, depth_m = depth) |>
+  select(lon, lat, year, month, catch_kg = select_bgs, effort_hrs = hrs_fish,
+    sst = tempsurf, chl_a = chlorsurf, depth_m = depth) |>
   type.convert(as.is = TRUE)
 
 ### convert months to season
@@ -268,14 +271,16 @@ kmack_data$present <- ifelse(kmack_data$catch_kg > 0, 1, 0)
 #  Alternatively, using cloglog link—binomial(link = "cloglog")—makes offset = log(effort_hrs) mathematically exact for presence/absence data!)
 
 fit_hsi <- sdmTMB(
-  present ~ s(sst, k = 4) + s(log_depth, k = 4) + s(log_chl, k = 4) + season,
+  # present ~ s(sst, k = 4) + s(log_depth, k = 4) + s(log_chl, k = 4) + season,
+  present ~ sst + log_depth + log_chl + season,
   data = kmack_data,
   mesh = barrier_mesh,
   family = binomial(link = "logit"),
   offset = log(kmack_data$effort_hrs), # Accounts for varying tow/soak times
   time = "year",
-  spatial = "on",
-  spatiotemporal = "ar1"
+  spatial = "off",
+  spatiotemporal = "iid"#,
+  # extra_time = c(2005, 2020, 2023) # for use with AR1 spatiotemporal model
 )
 
 sanity(fit_hsi)
@@ -283,6 +288,14 @@ summary(fit_hsi)
 
 kmack_data$resid_hsi <- residuals(fit_hsi, type = "mle-mvn")
 qqnorm(kmack_data$resid_hsi); abline(0, 1)
+
+visreg::visreg(fit_hsi, xvar = "sst", scale = "response")
+
+### gulf_grid is from kgm_predict_grid.R
+p <- predict(fit_hsi, newdata = gulf_grid)
+
+ggplot(p, aes(X, Y, fill = exp(est))) + geom_raster() +
+  scale_fill_viridis_c(trans = "log10")
 
 ### convergence issues
 # 1. Change spatiotemporal = "ar1" to "iid" (estimating the AR1 correlation parameter $\rho$ is often noisy 
