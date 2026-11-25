@@ -7,13 +7,14 @@ library(nlstools)
 library(vctrs)
 library(minpack.lm)
 library(MASS)
+library(fields)
 
 setwd('c:/Users/brendan.turley/Documents/CMP/data/kmk_lengths')
 kgm_laa_s99 <- read_xlsx("KMK_age_ALL_20260323C.xlsx")
 
 kgm_dat <- subset(kgm_laa_s99, State_Landed %in% c('TX','LA','MS','AL','FL')) |>
-  subset(Stock == 'Gulf of America') |>
-  subset(Gear_Group_Code == 'HL')
+  subset(Stock == 'Gulf of America') #|>
+  # subset(Gear_Group_Code == 'HL')
 
 colnames(kgm_dat) <- tolower(colnames(kgm_dat))
 kgm_dat$macro_sex <- toupper(kgm_dat$macro_sex)
@@ -31,7 +32,7 @@ gulf_yrage <- aggregate(final_length_mm ~ year + final_age, data = kgm_dat,
   reshape(idvar = 'final_age', timevar = 'year', direction = 'wide')
 gulf_pro <- t(as.matrix(gulf_yrage[,-1]))/apply(t(as.matrix(gulf_yrage[,-1])),1,sum,na.rm=T)
 
-image(1986:2024,0:24,gulf_pro,asp=1,col=rev(mako(60)))
+imagePlot(1986:2024,0:24,gulf_pro,asp=1,col=rev(mako(60)))
 boxplot(gulf_pro, names = gulf_yrage[,1])
 
 gulf_yrsd <- aggregate(final_length_mm ~ year + final_age, data = kgm_dat,
@@ -44,7 +45,7 @@ image(1986:2024,0:24,t(as.matrix(gulf_yrsd[,-1])),asp=1,col=rev(mako(60)))
 boxplot(t(as.matrix(gulf_yrsd[,-1])), names = gulf_yrsd[,1])
 
 # Growth per year ---------------------------------------------------------
-kgm_test <- subset(kgm_dat, final_age>1 & final_age<10)
+kgm_test <- subset(kgm_dat, final_age>0 & final_age<14)
 aggregate(final_length_mm ~ final_age + year, 
   data = kgm_test, 
   quantile, probs =c(.001,.5,.999), na.rm = TRUE)
@@ -56,6 +57,16 @@ kgm_filtered  <- kgm_test |>
     final_length_mm <= quantile(final_length_mm, 0.999, na.rm = TRUE)
   ) |>
   ungroup()
+
+kgm_n_yrm <- aggregate(final_length_mm ~ year + final_age, 
+  data = kgm_filtered,
+  length) |>
+  merge(expand.grid(year = 1986:2024, final_age = 1:13), by = c('year','final_age'), all = T) |>
+  arrange(year, final_age) |>
+  reshape(idvar = 'final_age', timevar = 'year', direction = 'wide')
+
+imagePlot(1986:2024,1:13,t(as.matrix(kgm_n_yrm[,-1])),asp=1,col=rev(mako(60)))
+boxplot(t(as.matrix(kgm_n_yrm[,-1])), names = kgm_n_yrm[,1])
 
 vb2 <- makeGrowthFun(type="von Bertalanffy",pname="Original")
 vb2_form <- formula(final_length_mm ~ Linf - (Linf - L0) * exp(-K * final_age))
@@ -110,12 +121,4 @@ for(i in unique(subset(kgm_laa_yrm, macro_sex == 'M')$final_age)){
   lines(tmp$year, tmp$final_length_mm, typ = 'o', col = i)
 }
 
-kgm_n_yrm <- aggregate(final_length_mm ~ year + final_age, 
-  data = kgm_filtered,
-  length) |>
-  merge(expand.grid(year = 1986:2024, final_age = 2:9), by = c('year','final_age'), all = T) |>
-  arrange(year, final_age) |>
-  reshape(idvar = 'final_age', timevar = 'year', direction = 'wide')
 
-image(1986:2024,2:9,t(as.matrix(kgm_n_yrm[,-1])),asp=1,col=rev(mako(60)))
-boxplot(t(as.matrix(kgm_n_yrm[,-1])), names = kgm_n_yrm[,1])
