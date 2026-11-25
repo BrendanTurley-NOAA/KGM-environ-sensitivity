@@ -13,8 +13,8 @@ setwd('c:/Users/brendan.turley/Documents/CMP/data/kmk_lengths')
 kgm_laa_s99 <- read_xlsx("KMK_age_ALL_20260323C.xlsx")
 
 kgm_dat <- subset(kgm_laa_s99, State_Landed %in% c('TX','LA','MS','AL','FL')) |>
-  subset(Stock == 'Gulf of America') #|>
-  # subset(Gear_Group_Code == 'HL')
+  subset(Stock == 'Gulf of America') |>
+  subset(Gear_Group_Code == 'HL')
 
 colnames(kgm_dat) <- tolower(colnames(kgm_dat))
 kgm_dat$macro_sex <- toupper(kgm_dat$macro_sex)
