@@ -1,4 +1,5 @@
 
+library(dplyr)
 library(readxl)
 library(viridisLite)
 library(fishgrowth)
@@ -17,7 +18,6 @@ kgm_dat <- subset(kgm_laa_s99, State_Landed %in% c('TX','LA','MS','AL','FL')) |>
   subset(Gear_Group_Code == 'HL')
 
 colnames(kgm_dat) <- tolower(colnames(kgm_dat))
-kgm_dat$macro_sex <- toupper(kgm_dat$macro_sex)
 
 with(aggregate(final_age ~ year, data = kgm_dat,
                function(x) length(x)),barplot(final_age,names.arg=year,las=2))
@@ -51,7 +51,7 @@ aggregate(final_length_mm ~ final_age + year,
   quantile, probs =c(.001,.5,.999), na.rm = TRUE)
 
 kgm_filtered  <- kgm_test |>
-  group_by(final_age, year, macro_sex) |>
+  group_by(final_age, year, final_sex) |>
   filter(
     final_length_mm >= quantile(final_length_mm, 0.001, na.rm = TRUE),
     final_length_mm <= quantile(final_length_mm, 0.999, na.rm = TRUE)
@@ -103,21 +103,21 @@ plot(output$year, output$L0, typ = 'o')
 # plot(yrs, r, typ = 'o')
 plot(kgm_filtered$final_age, kgm_filtered$final_length_mm)
 
-kgm_laa_yrm <- aggregate(final_length_mm ~ year + final_age + macro_sex, 
+kgm_laa_yrm <- aggregate(final_length_mm ~ year + final_age + final_sex, 
   data = kgm_filtered,
   median, na.rm = TRUE)
 
-with(subset(kgm_laa_yrm, macro_sex == 'F'),
+with(subset(kgm_laa_yrm, final_sex == 'F'),
   plot(year, final_length_mm, typ = 'n'))
-for(i in unique(subset(kgm_laa_yrm, macro_sex == 'F')$final_age)){
-  tmp <- subset(subset(kgm_laa_yrm, macro_sex == 'F'), final_age==i)
+for(i in unique(subset(kgm_laa_yrm, final_sex == 'F')$final_age)){
+  tmp <- subset(subset(kgm_laa_yrm, final_sex == 'F'), final_age==i)
   lines(tmp$year, tmp$final_length_mm, typ = 'o', col = i)
 }
 
-with(subset(kgm_laa_yrm, macro_sex == 'M'),
+with(subset(kgm_laa_yrm, final_sex == 'M'),
   plot(year, final_length_mm, typ = 'n'))
-for(i in unique(subset(kgm_laa_yrm, macro_sex == 'M')$final_age)){
-  tmp <- subset(subset(kgm_laa_yrm, macro_sex == 'M'), final_age==i)
+for(i in unique(subset(kgm_laa_yrm, final_sex == 'M')$final_age)){
+  tmp <- subset(subset(kgm_laa_yrm, final_sex == 'M'), final_age==i)
   lines(tmp$year, tmp$final_length_mm, typ = 'o', col = i)
 }
 
